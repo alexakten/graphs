@@ -374,17 +374,29 @@ function App() {
   }, []);
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        width: "100%",
-        minHeight: "80vh",
-        gap: "1rem",
-        padding: "0 2rem",
-        boxSizing: "border-box",
-      }}
-    >
+    <>
+      <style>
+        {`
+        @media (max-width: 768px) {
+          .hero-grid {
+            display: flex !important;
+            flex-direction: column !important;
+          }
+        }
+        `}
+      </style>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          width: "100%",
+          minHeight: "80vh",
+          gap: "1rem",
+          padding: "0 2rem",
+          boxSizing: "border-box",
+        }}
+        className="hero-grid"
+      >
       <div
         style={{
           flex: 1,
@@ -453,7 +465,8 @@ function App() {
           style={{ width: "100%", height: "100%", display: "block" }}
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
