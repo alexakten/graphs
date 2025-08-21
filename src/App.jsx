@@ -326,7 +326,7 @@ function App() {
       });
 
       if (enableMouseGravity) {
-        const gravityStrength = 0.03;
+        const gravityStrength = 0.01;
         nodes.forEach((d) => {
           const dx = mouse.x - d.x;
           const dy = mouse.y - d.y;
