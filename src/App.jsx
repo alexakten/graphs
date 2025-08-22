@@ -4,7 +4,7 @@ import { Delaunay } from "d3-delaunay";
 
 const nodeCount = 120;
 const zoomLevel = 80; // Percentage between 0 and 100
-const spacing = 220;
+const spacing = 240;
 const useSquares = true;
 const colorConnectedNodes = true;
 const logoSize = 0;
@@ -25,7 +25,7 @@ function generateData(nodeCount) {
   }));
 
   const links = [];
-  const maxConnections = 5;
+  const maxConnections = 4;
 
   nodes.forEach((source, i) => {
     const numConnections = Math.floor(Math.random() * (maxConnections + 1));
