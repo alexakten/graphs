@@ -455,14 +455,20 @@ function App() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "#f5f5f5",
+            // backgroundColor: "#f5f5f5",
+            backgroundColor: "#fff",
             height: "100%",
             alignSelf: "stretch",
           }}
         >
           <svg
             ref={svgRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "block",
+              overflow: "visible",
+            }}
           />
         </div>
       </div>
