@@ -12,6 +12,11 @@ const showLogosOnHover = false;
 const enableHoverEffect = false;
 const enableMouseGravity = true;
 
+const allowGraphOverflow = true;
+
+// const canvasBackgroundColor = "#f5f5f5";
+const canvasBackgroundColor = "#fff";
+
 function generateData(nodeCount) {
   const nodes = Array.from({ length: nodeCount }, (_, i) => ({
     id: `Node ${i}`,
@@ -376,6 +381,7 @@ function App() {
           .hero-grid {
             display: flex !important;
             flex-direction: column !important;
+            overflow: visible !important;
           }
         }
         `}
@@ -446,18 +452,23 @@ function App() {
             flex: 1,
             padding: "0rem 0",
             borderRadius: "0px",
-            overflow: "visible",
+            overflow: allowGraphOverflow ? "visible" : "hidden",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "#f5f5f5",
+            backgroundColor: canvasBackgroundColor,
             height: "100%",
             alignSelf: "stretch",
           }}
         >
           <svg
             ref={svgRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "block",
+              overflow: "visible",
+            }}
           />
         </div>
       </div>
