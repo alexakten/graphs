@@ -1,103 +1,127 @@
 import { useEffect, useRef } from "react";
+import { dataset } from "./data";
 import * as d3 from "d3";
-import { Delaunay } from "d3-delaunay";
+import * as cola from "webcola";
 
-const nodeCount = 120;
-const zoomLevel = 80; // Percentage between 0 and 100
+const zoomLevel = 100; // Percentage between 0 and 100
 const spacing = 240;
 const useSquares = true;
 const colorConnectedNodes = true;
-const logoSize = 0;
-const showLogosOnHover = false;
-const enableHoverEffect = false;
-const enableMouseGravity = true;
+const colors = ["#920C00", "#7977FF", "#000792"];
 
 const allowGraphOverflow = true;
 
 // const canvasBackgroundColor = "#f5f5f5";
 const canvasBackgroundColor = "#fff";
 
-function generateData(nodeCount) {
-  const nodes = Array.from({ length: nodeCount }, (_, i) => ({
-    id: `Node ${i}`,
-    x: Math.random() * 800 - 400,
-    y: Math.random() * 600 - 300,
-  }));
-
-  const links = [];
-  const maxConnections = 4;
-
-  nodes.forEach((source, i) => {
-    const numConnections = Math.floor(Math.random() * (maxConnections + 1));
-    const potentialTargets = nodes.filter((_, j) => j !== i);
-    const shuffled = potentialTargets.sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, numConnections);
-    selected.forEach((target) => {
-      links.push({ source: source.id, target: target.id });
-    });
-  });
-
-  // Count connections per node
-  const connectionCount = {};
-  links.forEach(({ source, target }) => {
-    connectionCount[source] = (connectionCount[source] || 0) + 1;
-    connectionCount[target] = (connectionCount[target] || 0) + 1;
-  });
-
-  nodes.forEach((node) => {
-    node.connections = connectionCount[node.id] || 1;
-  });
-
-  return { nodes, links };
-}
-
 function App() {
   const svgRef = useRef();
 
   useEffect(() => {
-    const { nodes, links } = generateData(nodeCount);
+    const { nodes, links: originalLinks } = dataset;
 
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
 
     d3.select(svgRef.current).selectAll("*").remove();
 
+    // Map links to use node objects instead of ids
+    let links = originalLinks.map((l) => ({
+      source: nodes.find((n) => n.id === l.source),
+      target: nodes.find((n) => n.id === l.target),
+    }));
+
+    // --- Ensure each node has at least 2 connections ---
+    // Build a map of node id to node object for fast lookup
+    const nodeMap = {};
+    nodes.forEach((n) => {
+      nodeMap[n.id] = n;
+    });
+    // Build a map of node id to set of connected node ids
+    const connectionMap = {};
+    nodes.forEach((n) => {
+      connectionMap[n.id] = new Set();
+    });
+    links.forEach((l) => {
+      connectionMap[l.source.id].add(l.target.id);
+      connectionMap[l.target.id].add(l.source.id);
+    });
+    // For each node, if it has < 2 connections, add links to random other nodes (no self, no dup)
+    nodes.forEach((n) => {
+      while (connectionMap[n.id].size < 2) {
+        // Get possible targets: not self, not already connected
+        const possibleTargets = nodes.filter(
+          (other) => other.id !== n.id && !connectionMap[n.id].has(other.id)
+        );
+        if (possibleTargets.length === 0) break; // fully connected
+        // Pick a random target
+        const target =
+          possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+        // Add a new link
+        links.push({ source: n, target: target });
+        connectionMap[n.id].add(target.id);
+        connectionMap[target.id].add(n.id);
+      }
+    });
+
+    nodes.forEach((n) => {
+      if (typeof n.x !== "number" || Number.isNaN(n.x))
+        n.x = Math.random() * width;
+      if (typeof n.y !== "number" || Number.isNaN(n.y))
+        n.y = Math.random() * height;
+      // Update connections count for node
+      n.connections = connectionMap[n.id].size || 1;
+    });
+
     const svg = d3
       .select(svgRef.current)
-      .attr("viewBox", [
-        (-width * (zoomLevel / 100)) / 2,
-        (-height * (zoomLevel / 100)) / 2,
-        width * (zoomLevel / 100),
-        height * (zoomLevel / 100),
-      ])
       .attr("width", width)
       .attr("height", height)
       .style("max-width", "100%")
       .style("height", "auto");
 
     const container = svg.append("g");
+    container.style("opacity", 0);
 
-    const simulation = d3
-      .forceSimulation(nodes)
-      .force("charge", d3.forceManyBody().strength(-spacing))
-      .force(
-        "link",
-        d3
-          .forceLink(links)
-          .id((d) => d.id)
-          .distance(spacing)
-          .strength(1) // increase to group connected nodes more tightly
-      )
-      .force("x", d3.forceX())
-      .force("y", d3.forceY())
-      .force(
-        "collision",
-        d3.forceCollide().radius((d) => d.connections + 4)
-      )
-      .alpha(1)
-      .alphaDecay(0)
-      .velocityDecay(0.05)
-      .restart();
+    // Auto-fit & center the graph inside the SVG
+    const pad = 20; // inner padding inside the column
+    function fitToCenter() {
+      const xs = nodes.map((n) => n.x);
+      const ys = nodes.map((n) => n.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const gW = maxX - minX || 1;
+      const gH = maxY - minY || 1;
+
+      const scale =
+        Math.min((width * 0.95) / gW, (height * 0.95) / gH) * (zoomLevel / 100);
+
+      const graphCenterX = (minX + maxX) / 2;
+      const graphCenterY = (minY + maxY) / 2;
+
+      const canvasCenterX = width / 2;
+      const canvasCenterY = height / 2;
+
+      const tx = canvasCenterX - scale * graphCenterX;
+      const ty = canvasCenterY - scale * graphCenterY;
+
+      container.attr("transform", `translate(${tx},${ty}) scale(${scale})`);
+    }
+    fitToCenter();
+    container.transition().duration(0).style("opacity", 1);
+
+    // Initialize WebCoLa layout
+    const d3cola = cola
+      .d3adaptor(d3)
+      .size([width, height])
+      .nodes(nodes)
+      .links(links)
+      .linkDistance(spacing)
+      .avoidOverlaps(true)
+      .symmetricDiffLinkLengths(5)
+      .start(1, 1, 1);
 
     const link = container
       .append("g")
@@ -112,7 +136,6 @@ function App() {
       .sort((a, b) => b.connections - a.connections)
       .slice(0, 12);
 
-    const colors = ["#920C00", "#7977FF", "#000792"];
     topNodes.forEach((node, i) => {
       node.color = colors[i % colors.length];
     });
@@ -177,164 +200,9 @@ function App() {
         useSquares ? (d) => -Math.min(12, Math.pow(d.connections, 0.7)) : null
       )
       .attr("fill", (d) => d.color || "#000")
-      .style("opacity", (d) => Math.min(1, (d.connections + 1) / 10));
+      .style("opacity", 1);
 
-    const logoFiles = [
-      "cvria.png",
-      "domstolar.png",
-      "eba.png",
-      "esma.png",
-      "eurlex.png",
-      "finans.png",
-      "imanage.png",
-      "imy.png",
-      "iustus.png",
-      "onedrive.png",
-      "riksdag.png",
-      "skatte.png",
-    ];
-
-    const logos = container
-      .append("g")
-      .selectAll("image")
-      .data(nodes, (d) => d.id)
-      .join("image")
-      .attr("xlink:href", "")
-      .attr("width", 40)
-      .attr("height", 40)
-      .attr("x", (d) => d.x - 20)
-      .attr("y", (d) => d.y - 40)
-      .style("opacity", 0);
-
-    const persistentLogos = container
-      .append("g")
-      .selectAll("foreignObject")
-      .data(showLogosOnHover ? [] : topNodes)
-      .join("foreignObject")
-      .attr("width", logoSize)
-      .attr("height", logoSize)
-      .attr("x", (d) => d.x - logoSize / 2)
-      .attr("y", (d) => d.y - logoSize - 12)
-      .style("overflow", "visible")
-      .style("opacity", 1)
-      .html(
-        (d, i) => `
-  <div xmlns="http://www.w3.org/1999/xhtml" style="
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    pointer-events: none;
-  ">
-    <div style="
-      background: white;
-      border-radius: 6px;
-      width: ${logoSize}px;
-      height: ${logoSize}px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    ">
-      <img src="/logos/${logoFiles[i % logoFiles.length]}" style="max-width: ${
-          logoSize - 8
-        }px; max-height: ${logoSize - 8}px; object-fit: contain;" />
-    </div>
-    <div style="
-      width: 0;
-      height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-top: 6px solid white;
-      margin-top: -1px;
-      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
-    "></div>
-  </div>
-`
-      );
-
-    // --- Hover interaction ---
-    if (enableHoverEffect) {
-      // Helper to find connected nodes
-      const linkedByIndex = {};
-      links.forEach((d) => {
-        linkedByIndex[`${d.source.id},${d.target.id}`] = true;
-        linkedByIndex[`${d.target.id},${d.source.id}`] = true;
-      });
-      function isConnected(a, b) {
-        return linkedByIndex[`${a.id},${b.id}`] || a.id === b.id;
-      }
-
-      // Hover behavior with smooth transitions and stronger fade
-      node.on("mouseover", function (event, d) {
-        const highlightColor = d.color || "#000";
-
-        node
-          .transition()
-          .duration(100)
-          .style("opacity", (o) => (isConnected(d, o) ? 1 : 0.2))
-          .attr("fill", (o) =>
-            isConnected(d, o) ? highlightColor : o.color || "#000"
-          );
-
-        link
-          .transition()
-          .duration(100)
-          .style("opacity", (l) =>
-            l.source.id === d.id || l.target.id === d.id ? 1 : 0.2
-          )
-          .attr("stroke", (l) =>
-            l.source.id === d.id || l.target.id === d.id
-              ? highlightColor
-              : "rgba(0, 0, 0, 0.2)"
-          );
-      });
-      node.on("mouseout", function () {
-        node
-          .transition()
-          .duration(100)
-          .style("opacity", (d) => Math.min(1, (d.connections + 1) / 10))
-          .attr("fill", (d) => d.color || "#000");
-
-        link
-          .transition()
-          .duration(100)
-          .style("opacity", 1)
-          .attr("stroke", "rgba(0, 0, 0, 0.2)")
-          .attr("stroke-width", 0.5);
-      });
-    }
-
-    const mouse = { x: 0, y: 0 };
-    svg.on("mousemove", (event) => {
-      const [x, y] = d3.pointer(event);
-      mouse.x = x;
-      mouse.y = y;
-    });
-
-    simulation.on("tick", () => {
-      nodes.forEach((d) => {
-        if (d.homeX === undefined) d.homeX = d.x;
-        if (d.homeY === undefined) d.homeY = d.y;
-        if (!d.phaseX) d.phaseX = Math.random() * Math.PI * 2;
-        if (!d.phaseY) d.phaseY = Math.random() * Math.PI * 2;
-
-        d.phaseX += 0.02 + Math.random() * 0.005;
-        d.phaseY += 0.02 + Math.random() * 0.005;
-
-        d.x = d.homeX + Math.sin(d.phaseX) * 10;
-        d.y = d.homeY + Math.sin(d.phaseY) * 10;
-      });
-
-      if (enableMouseGravity) {
-        const gravityStrength = 0.01;
-        nodes.forEach((d) => {
-          const dx = mouse.x - d.x;
-          const dy = mouse.y - d.y;
-          d.x += dx * gravityStrength;
-          d.y += dy * gravityStrength;
-        });
-      }
-
+    d3cola.on("tick", () => {
       if (useSquares) {
         node
           .attr("x", (d) => d.x - Math.min(12, Math.pow(d.connections, 0.7)))
@@ -348,11 +216,10 @@ function App() {
         .attr("x2", (d) => d.target.x)
         .attr("y2", (d) => d.target.y);
 
-      logos.attr("x", (d) => d.x - 20).attr("y", (d) => d.y - 40);
-
-      persistentLogos
-        .attr("x", (d) => d.x - logoSize / 2)
-        .attr("y", (d) => d.y - logoSize - 12);
+      // logos.attr("x", (d) => d.x - 20).attr("y", (d) => d.y - 40);
+      // persistentLogos
+      //   .attr("x", (d) => d.x - logoSize / 2)
+      //   .attr("y", (d) => d.y - logoSize - 12);
     });
 
     /*
@@ -370,7 +237,7 @@ function App() {
     );
     */
 
-    return () => simulation.stop();
+    return () => d3cola.stop();
   }, []);
 
   return (
@@ -457,6 +324,7 @@ function App() {
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: canvasBackgroundColor,
+            // backgroundColor: "red",
             height: "100%",
             alignSelf: "stretch",
           }}
