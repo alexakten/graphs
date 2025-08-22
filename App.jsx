@@ -3,8 +3,8 @@ import * as d3 from "d3";
 import { Delaunay } from "d3-delaunay";
 
 const nodeCount = 120;
-const zoomLevel = 80; // Percentage between 0 and 100
-const spacing = 220;
+const zoomLevel = 150; // Percentage between 0 and 100
+const spacing = 180;
 const useSquares = true;
 const colorConnectedNodes = true;
 const logoSize = 0;
@@ -19,18 +19,23 @@ function generateData(nodeCount) {
     y: Math.random() * 600 - 300,
   }));
 
+  const delaunay = Delaunay.from(
+    nodes,
+    (d) => d.x,
+    (d) => d.y
+  );
+  const triangles = delaunay.triangles;
   const links = [];
-  const maxConnections = 5;
 
-  nodes.forEach((source, i) => {
-    const numConnections = Math.floor(Math.random() * (maxConnections + 1));
-    const potentialTargets = nodes.filter((_, j) => j !== i);
-    const shuffled = potentialTargets.sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, numConnections);
-    selected.forEach((target) => {
-      links.push({ source: source.id, target: target.id });
-    });
-  });
+  for (let i = 0; i < triangles.length; i += 3) {
+    const a = nodes[triangles[i]];
+    const b = nodes[triangles[i + 1]];
+    const c = nodes[triangles[i + 2]];
+
+    links.push({ source: a.id, target: b.id });
+    links.push({ source: b.id, target: c.id });
+    links.push({ source: c.id, target: a.id });
+  }
 
   // Count connections per node
   const connectionCount = {};
@@ -107,7 +112,7 @@ function App() {
       .sort((a, b) => b.connections - a.connections)
       .slice(0, 12);
 
-    const colors = ["#920C00", "#7977FF", "#000792"];
+    const colors = ["#FF7300", "#7977FF", "#D483FF", "#47A93D"];
     topNodes.forEach((node, i) => {
       node.color = colors[i % colors.length];
     });
