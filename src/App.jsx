@@ -18,226 +18,224 @@ function App() {
   const svgRef = useRef();
 
   useEffect(() => {
-    const { nodes, links: originalLinks } = dataset;
+    let width = 0;
+    let height = 0;
+    let d3cola;
 
-    const width = svgRef.current.clientWidth;
-    const height = svgRef.current.clientHeight;
+    const observer = new ResizeObserver(() => {
+      if (!svgRef.current) return;
 
-    d3.select(svgRef.current).selectAll("*").remove();
+      width = svgRef.current.clientWidth;
+      height = svgRef.current.clientHeight;
 
-    // Map links to use node objects instead of ids
-    let links = originalLinks.map((l) => ({
-      source: nodes.find((n) => n.id === l.source),
-      target: nodes.find((n) => n.id === l.target),
-    }));
+      // Clear previous content
+      d3.select(svgRef.current).selectAll("*").remove();
 
-    // --- Ensure each node has at least 2 connections ---
-    // Build a map of node id to node object for fast lookup
-    const nodeMap = {};
-    nodes.forEach((n) => {
-      nodeMap[n.id] = n;
-    });
-    // Build a map of node id to set of connected node ids
-    const connectionMap = {};
-    nodes.forEach((n) => {
-      connectionMap[n.id] = new Set();
-    });
-    links.forEach((l) => {
-      connectionMap[l.source.id].add(l.target.id);
-      connectionMap[l.target.id].add(l.source.id);
-    });
-    // For each node, if it has < 2 connections, add links to random other nodes (no self, no dup)
-    nodes.forEach((n) => {
-      while (connectionMap[n.id].size < 2) {
-        // Get possible targets: not self, not already connected
-        const possibleTargets = nodes.filter(
-          (other) => other.id !== n.id && !connectionMap[n.id].has(other.id)
-        );
-        if (possibleTargets.length === 0) break; // fully connected
-        // Pick a random target
-        const target =
-          possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
-        // Add a new link
-        links.push({ source: n, target: target });
-        connectionMap[n.id].add(target.id);
-        connectionMap[target.id].add(n.id);
-      }
-    });
+      const { nodes, links: originalLinks } = dataset;
 
-    nodes.forEach((n) => {
-      if (typeof n.x !== "number" || Number.isNaN(n.x))
-        n.x = Math.random() * width;
-      if (typeof n.y !== "number" || Number.isNaN(n.y))
-        n.y = Math.random() * height;
-      // Update connections count for node
-      n.connections = connectionMap[n.id].size || 1;
-    });
+      d3cola && d3cola.stop();
 
-    const svg = d3
-      .select(svgRef.current)
-      .attr("width", width)
-      .attr("height", height)
-      .style("max-width", "100%")
-      .style("height", "auto");
+      // Map links to use node objects instead of ids
+      let links = originalLinks.map((l) => ({
+        source: nodes.find((n) => n.id === l.source),
+        target: nodes.find((n) => n.id === l.target),
+      }));
 
-    const container = svg.append("g");
-    container.style("opacity", 0);
-
-    // Auto-fit & center the graph inside the SVG
-    const pad = 20; // inner padding inside the column
-    function fitToCenter() {
-      const xs = nodes.map((n) => n.x);
-      const ys = nodes.map((n) => n.y);
-      const minX = Math.min(...xs);
-      const maxX = Math.max(...xs);
-      const minY = Math.min(...ys);
-      const maxY = Math.max(...ys);
-      const gW = maxX - minX || 1;
-      const gH = maxY - minY || 1;
-
-      const scale =
-        Math.min((width * 0.95) / gW, (height * 0.95) / gH) * (zoomLevel / 100);
-
-      const graphCenterX = (minX + maxX) / 2;
-      const graphCenterY = (minY + maxY) / 2;
-
-      const canvasCenterX = width / 2;
-      const canvasCenterY = height / 2;
-
-      const tx = canvasCenterX - scale * graphCenterX;
-      const ty = canvasCenterY - scale * graphCenterY;
-
-      container.attr("transform", `translate(${tx},${ty}) scale(${scale})`);
-    }
-    fitToCenter();
-    container.transition().duration(0).style("opacity", 1);
-
-    // Initialize WebCoLa layout
-    const d3cola = cola
-      .d3adaptor(d3)
-      .size([width, height])
-      .nodes(nodes)
-      .links(links)
-      .linkDistance(spacing)
-      .avoidOverlaps(true)
-      .symmetricDiffLinkLengths(5)
-      .start(1, 1, 1);
-
-    const link = container
-      .append("g")
-      .attr("stroke", "rgba(0, 0, 0, 0.2)")
-      .attr("stroke-opacity", 1)
-      .selectAll("line")
-      .data(links)
-      .join("line")
-      .attr("stroke-width", 0.5);
-
-    const topNodes = [...nodes]
-      .sort((a, b) => b.connections - a.connections)
-      .slice(0, 12);
-
-    topNodes.forEach((node, i) => {
-      node.color = colors[i % colors.length];
-    });
-
-    if (colorConnectedNodes) {
-      const topNodeIds = new Set(topNodes.map((n) => n.id));
-
-      const connectedToTop = new Set();
-      links.forEach(({ source, target }) => {
-        if (topNodeIds.has(source.id)) connectedToTop.add(target.id);
-        if (topNodeIds.has(target.id)) connectedToTop.add(source.id);
+      // --- Ensure each node has at least 2 connections ---
+      // Build a map of node id to node object for fast lookup
+      const nodeMap = {};
+      nodes.forEach((n) => {
+        nodeMap[n.id] = n;
+      });
+      // Build a map of node id to set of connected node ids
+      const connectionMap = {};
+      nodes.forEach((n) => {
+        connectionMap[n.id] = new Set();
+      });
+      links.forEach((l) => {
+        connectionMap[l.source.id].add(l.target.id);
+        connectionMap[l.target.id].add(l.source.id);
+      });
+      // For each node, if it has < 2 connections, add links to random other nodes (no self, no dup)
+      nodes.forEach((n) => {
+        while (connectionMap[n.id].size < 2) {
+          // Get possible targets: not self, not already connected
+          const possibleTargets = nodes.filter(
+            (other) => other.id !== n.id && !connectionMap[n.id].has(other.id)
+          );
+          if (possibleTargets.length === 0) break; // fully connected
+          // Pick a random target
+          const target =
+            possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+          // Add a new link
+          links.push({ source: n, target: target });
+          connectionMap[n.id].add(target.id);
+          connectionMap[target.id].add(n.id);
+        }
       });
 
       nodes.forEach((n) => {
-        if (!topNodeIds.has(n.id) && connectedToTop.has(n.id)) {
-          for (const top of topNodes) {
-            if (
-              links.find(
-                (l) =>
-                  (l.source.id === n.id && l.target.id === top.id) ||
-                  (l.target.id === n.id && l.source.id === top.id)
-              )
-            ) {
-              n.color = top.color;
-              break;
+        if (typeof n.x !== "number" || Number.isNaN(n.x))
+          n.x = Math.random() * width;
+        if (typeof n.y !== "number" || Number.isNaN(n.y))
+          n.y = Math.random() * height;
+        // Update connections count for node
+        n.connections = connectionMap[n.id].size || 1;
+      });
+
+      const svg = d3
+        .select(svgRef.current)
+        .attr("width", width)
+        .attr("height", height)
+        .style("max-width", "100%")
+        .style("height", "auto");
+
+      const container = svg.append("g");
+      container.style("opacity", 0);
+
+      // Auto-fit & center the graph inside the SVG
+      const pad = 20; // inner padding inside the column
+      function fitToCenter() {
+        const xs = nodes.map((n) => n.x);
+        const ys = nodes.map((n) => n.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const gW = maxX - minX || 1;
+        const gH = maxY - minY || 1;
+
+        const scale =
+          Math.min((width * 0.95) / gW, (height * 0.95) / gH) * (zoomLevel / 100);
+
+        const graphCenterX = (minX + maxX) / 2;
+        const graphCenterY = (minY + maxY) / 2;
+
+        const canvasCenterX = width / 2;
+        const canvasCenterY = height / 2;
+
+        const tx = canvasCenterX - scale * graphCenterX;
+        const ty = canvasCenterY - scale * graphCenterY;
+
+        container.attr("transform", `translate(${tx},${ty}) scale(${scale})`);
+      }
+      fitToCenter();
+      container.transition().duration(0).style("opacity", 1);
+
+      // Initialize WebCoLa layout
+      d3cola = cola
+        .d3adaptor(d3)
+        .size([width, height])
+        .nodes(nodes)
+        .links(links)
+        .linkDistance(spacing)
+        .avoidOverlaps(true)
+        .symmetricDiffLinkLengths(5)
+        .start(1, 1, 1);
+
+      const link = container
+        .append("g")
+        .attr("stroke", "rgba(0, 0, 0, 0.2)")
+        .attr("stroke-opacity", 1)
+        .selectAll("line")
+        .data(links)
+        .join("line")
+        .attr("stroke-width", 0.5);
+
+      const topNodes = [...nodes]
+        .sort((a, b) => b.connections - a.connections)
+        .slice(0, 12);
+
+      topNodes.forEach((node, i) => {
+        node.color = colors[i % colors.length];
+      });
+
+      if (colorConnectedNodes) {
+        const topNodeIds = new Set(topNodes.map((n) => n.id));
+
+        const connectedToTop = new Set();
+        links.forEach(({ source, target }) => {
+          if (topNodeIds.has(source.id)) connectedToTop.add(target.id);
+          if (topNodeIds.has(target.id)) connectedToTop.add(source.id);
+        });
+
+        nodes.forEach((n) => {
+          if (!topNodeIds.has(n.id) && connectedToTop.has(n.id)) {
+            for (const top of topNodes) {
+              if (
+                links.find(
+                  (l) =>
+                    (l.source.id === n.id && l.target.id === top.id) ||
+                    (l.target.id === n.id && l.source.id === top.id)
+                )
+              ) {
+                n.color = top.color;
+                break;
+              }
             }
           }
-        }
-      });
-    }
-
-    const node = container
-      .append("g")
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 1)
-      .selectAll(useSquares ? "rect" : "circle")
-      .data(nodes)
-      .join(useSquares ? "rect" : "circle")
-      .style("pointer-events", "all")
-      .attr(
-        "r",
-        useSquares ? null : (d) => Math.min(6, Math.pow(d.connections, 0.7))
-      )
-      .attr(
-        "width",
-        useSquares
-          ? (d) => Math.min(6, Math.pow(d.connections, 0.7)) * 2
-          : null
-      )
-      .attr(
-        "height",
-        useSquares
-          ? (d) => Math.min(6, Math.pow(d.connections, 0.7)) * 2
-          : null
-      )
-      .attr(
-        "x",
-        useSquares ? (d) => -Math.min(6, Math.pow(d.connections, 0.7)) : null
-      )
-      .attr(
-        "y",
-        useSquares ? (d) => -Math.min(6, Math.pow(d.connections, 0.7)) : null
-      )
-      .attr("fill", (d) => d.color || "#000")
-      .style("opacity", 1);
-
-    d3cola.on("tick", () => {
-      if (useSquares) {
-        node
-          .attr("x", (d) => d.x - Math.min(6, Math.pow(d.connections, 0.7)))
-          .attr("y", (d) => d.y - Math.min(6, Math.pow(d.connections, 0.7)));
-      } else {
-        node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        });
       }
-      link
-        .attr("x1", (d) => d.source.x)
-        .attr("y1", (d) => d.source.y)
-        .attr("x2", (d) => d.target.x)
-        .attr("y2", (d) => d.target.y);
 
-      // logos.attr("x", (d) => d.x - 20).attr("y", (d) => d.y - 40);
-      // persistentLogos
-      //   .attr("x", (d) => d.x - logoSize / 2)
-      //   .attr("y", (d) => d.y - logoSize - 12);
+      const node = container
+        .append("g")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1)
+        .selectAll(useSquares ? "rect" : "circle")
+        .data(nodes)
+        .join(useSquares ? "rect" : "circle")
+        .style("pointer-events", "all")
+        .attr(
+          "r",
+          useSquares ? null : (d) => Math.min(6, Math.pow(d.connections, 0.7))
+        )
+        .attr(
+          "width",
+          useSquares
+            ? (d) => Math.min(6, Math.pow(d.connections, 0.7)) * 2
+            : null
+        )
+        .attr(
+          "height",
+          useSquares
+            ? (d) => Math.min(6, Math.pow(d.connections, 0.7)) * 2
+            : null
+        )
+        .attr(
+          "x",
+          useSquares ? (d) => -Math.min(6, Math.pow(d.connections, 0.7)) : null
+        )
+        .attr(
+          "y",
+          useSquares ? (d) => -Math.min(6, Math.pow(d.connections, 0.7)) : null
+        )
+        .attr("fill", (d) => d.color || "#000")
+        .style("opacity", 1);
+
+      d3cola.on("tick", () => {
+        if (useSquares) {
+          node
+            .attr("x", (d) => d.x - Math.min(6, Math.pow(d.connections, 0.7)))
+            .attr("y", (d) => d.y - Math.min(6, Math.pow(d.connections, 0.7)));
+        } else {
+          node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        }
+        link
+          .attr("x1", (d) => d.source.x)
+          .attr("y1", (d) => d.source.y)
+          .attr("x2", (d) => d.target.x)
+          .attr("y2", (d) => d.target.y);
+      });
     });
 
-    /*
-    svg.call(
-      d3
-        .zoom()
-        .filter((event) => {
-          // Disable zoom on drag or when clicking a node
-          return !event.target.closest("circle");
-        })
-        .scaleExtent([0.1, 5])
-        .on("zoom", (event) => {
-          container.attr("transform", event.transform);
-        })
-    );
-    */
+    if (svgRef.current) {
+      observer.observe(svgRef.current);
+    }
 
-    return () => d3cola.stop();
+    return () => {
+      if (svgRef.current) observer.unobserve(svgRef.current);
+      d3cola && d3cola.stop();
+    };
   }, []);
 
   return (
