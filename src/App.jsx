@@ -177,27 +177,27 @@ function App() {
       .style("pointer-events", "all")
       .attr(
         "r",
-        useSquares ? null : (d) => Math.min(12, Math.pow(d.connections, 0.7))
+        useSquares ? null : (d) => Math.min(6, Math.pow(d.connections, 0.7))
       )
       .attr(
         "width",
         useSquares
-          ? (d) => Math.min(12, Math.pow(d.connections, 0.7)) * 2
+          ? (d) => Math.min(6, Math.pow(d.connections, 0.7)) * 2
           : null
       )
       .attr(
         "height",
         useSquares
-          ? (d) => Math.min(12, Math.pow(d.connections, 0.7)) * 2
+          ? (d) => Math.min(6, Math.pow(d.connections, 0.7)) * 2
           : null
       )
       .attr(
         "x",
-        useSquares ? (d) => -Math.min(12, Math.pow(d.connections, 0.7)) : null
+        useSquares ? (d) => -Math.min(6, Math.pow(d.connections, 0.7)) : null
       )
       .attr(
         "y",
-        useSquares ? (d) => -Math.min(12, Math.pow(d.connections, 0.7)) : null
+        useSquares ? (d) => -Math.min(6, Math.pow(d.connections, 0.7)) : null
       )
       .attr("fill", (d) => d.color || "#000")
       .style("opacity", 1);
@@ -205,8 +205,8 @@ function App() {
     d3cola.on("tick", () => {
       if (useSquares) {
         node
-          .attr("x", (d) => d.x - Math.min(12, Math.pow(d.connections, 0.7)))
-          .attr("y", (d) => d.y - Math.min(12, Math.pow(d.connections, 0.7)));
+          .attr("x", (d) => d.x - Math.min(6, Math.pow(d.connections, 0.7)))
+          .attr("y", (d) => d.y - Math.min(6, Math.pow(d.connections, 0.7)));
       } else {
         node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
       }
