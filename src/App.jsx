@@ -8,8 +8,8 @@ const coords = [
     Math.floor(Math.random() * 500) + 100,
   ]),
   ...Array.from({ length: 20 }, () => [
-    Math.floor(Math.random() * 650) + 10,
-    Math.floor(Math.random() * 650) + 100,
+    Math.floor(Math.random() * 620) + 10,
+    Math.floor(Math.random() * 620) + 100,
   ]),
 ].flat();
 
