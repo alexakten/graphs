@@ -98,7 +98,7 @@ function App() {
       .attr("height", (d) => Math.max(4, d.connections))
       .attr("x", (d) => d.x - Math.max(2, d.connections / 2))
       .attr("y", (d) => d.y - Math.max(2, d.connections / 2))
-      .attr("fill", (d) => d.color || "#1976D2")
+      .attr("fill", (d) => (colors.includes(d.color) ? d.color : "#000"))
       .attr("stroke", "white")
       .attr("stroke-width", 1);
   }, []);
