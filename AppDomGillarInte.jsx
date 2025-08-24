@@ -2,19 +2,16 @@ import { useEffect, useRef } from "react";
 import * as d3 from "d3";
 import Delaunator from "delaunator";
 
-const totalCoords = 100;
-
-const coords = [];
-while (coords.length < totalCoords * 2) {
-  const x = Math.floor(Math.random() * 800); // full width
-  const y = Math.floor(Math.random() * 1000 - 100); // full height
-
-  const inMiddleLeftQuadrant = x < 300 && y >= 266 && y < 533;
-
-  if (!inMiddleLeftQuadrant) {
-    coords.push(x, y);
-  }
-}
+const coords = [
+  ...Array.from({ length: 80 }, () => [
+    Math.floor(Math.random() * 500) + 10,
+    Math.floor(Math.random() * 500) + 100,
+  ]),
+  ...Array.from({ length: 20 }, () => [
+    Math.floor(Math.random() * 620) + 10,
+    Math.floor(Math.random() * 620) + 100,
+  ]),
+].flat();
 
 const delaunay = new Delaunator(coords);
 
@@ -24,35 +21,15 @@ const nodes = coords.reduce((acc, _, i) => {
 }, []);
 
 const edgeSet = new Set();
-const isInMiddleLeft = (x, y) => x < 300 && y >= 266 && y < 533;
-
 for (let i = 0; i < delaunay.triangles.length; i += 3) {
   const a = delaunay.triangles[i];
   const b = delaunay.triangles[i + 1];
   const c = delaunay.triangles[i + 2];
-
   [
     [a, b],
     [b, c],
     [c, a],
   ].forEach(([u, v]) => {
-    const p1 = nodes[u];
-    const p2 = nodes[v];
-
-    // Skip edge if either node lies within the excluded middle-left quadrant
-    const topLeft = (x, y) => x < 300 && y < 266;
-    const middleLeft = (x, y) => x < 300 && y >= 266 && y < 533;
-    const bottomLeft = (x, y) => x < 300 && y >= 533;
-
-    if (
-      middleLeft(p1.x, p1.y) ||
-      middleLeft(p2.x, p2.y) ||
-      (topLeft(p1.x, p1.y) && bottomLeft(p2.x, p2.y)) ||
-      (bottomLeft(p1.x, p1.y) && topLeft(p2.x, p2.y))
-    ) {
-      return;
-    }
-
     const key = u < v ? `${u}-${v}` : `${v}-${u}`;
     edgeSet.add(key);
   });
