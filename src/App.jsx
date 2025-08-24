@@ -2,10 +2,12 @@ import { useEffect, useRef } from "react";
 import * as d3 from "d3";
 import Delaunator from "delaunator";
 
-const totalCoords = 100;
+const totalCoords = 80;
 
 const xPosition = -180; // change to shift left/right
 const yPosition = -180; // change to shift up/down
+const useRoundNodes = true; // Set to false for square nodes
+const nodeSizeScale = 7; // Set scale from 1 to 10
 
 const coords = [];
 while (coords.length < totalCoords * 2) {
@@ -140,15 +142,28 @@ function App() {
         return Math.random() < 0.5 ? 0.1 : 0.04;
       });
 
-    // Outer stroke rectangles
+    // Outer stroke rectangles or circles
     g.selectAll("outerStroke")
       .data(nodes)
       .enter()
-      .append("rect")
-      .attr("width", (d) => Math.max(4, d.connections) + 6)
-      .attr("height", (d) => Math.max(4, d.connections) + 6)
-      .attr("x", (d) => d.x - Math.max(2, d.connections / 2) - 3)
-      .attr("y", (d) => d.y - Math.max(2, d.connections / 2) - 3)
+      .append(useRoundNodes ? "circle" : "rect")
+      .attr("r", (d) =>
+        useRoundNodes ? Math.max(2, (d.connections / 2) * (nodeSizeScale / 5)) + 3 : null
+      )
+      .attr("cx", (d) => (useRoundNodes ? d.x : null))
+      .attr("cy", (d) => (useRoundNodes ? d.y : null))
+      .attr("width", (d) =>
+        useRoundNodes ? null : Math.max(4, d.connections * (nodeSizeScale / 5)) + 6
+      )
+      .attr("height", (d) =>
+        useRoundNodes ? null : Math.max(4, d.connections * (nodeSizeScale / 5)) + 6
+      )
+      .attr("x", (d) =>
+        useRoundNodes ? null : d.x - Math.max(2, d.connections / 2) - 3
+      )
+      .attr("y", (d) =>
+        useRoundNodes ? null : d.y - Math.max(2, d.connections / 2) - 3
+      )
       .attr("fill", "none")
       .attr("stroke", (d) => {
         if (colors.includes(d.color) && Math.random() < 0.2) {
@@ -159,15 +174,28 @@ function App() {
       .attr("stroke-width", 1)
       .attr("stroke-opacity", 1);
 
-    // White inner stroke rectangles
+    // White inner stroke rectangles or circles
     g.selectAll("whiteStroke")
       .data(nodes)
       .enter()
-      .append("rect")
-      .attr("width", (d) => Math.max(4, d.connections) + 2)
-      .attr("height", (d) => Math.max(4, d.connections) + 2)
-      .attr("x", (d) => d.x - Math.max(2, d.connections / 2) - 1)
-      .attr("y", (d) => d.y - Math.max(2, d.connections / 2) - 1)
+      .append(useRoundNodes ? "circle" : "rect")
+      .attr("r", (d) =>
+        useRoundNodes ? Math.max(2, (d.connections / 2) * (nodeSizeScale / 5)) + 1 : null
+      )
+      .attr("cx", (d) => (useRoundNodes ? d.x : null))
+      .attr("cy", (d) => (useRoundNodes ? d.y : null))
+      .attr("width", (d) =>
+        useRoundNodes ? null : Math.max(4, d.connections * (nodeSizeScale / 5)) + 2
+      )
+      .attr("height", (d) =>
+        useRoundNodes ? null : Math.max(4, d.connections * (nodeSizeScale / 5)) + 2
+      )
+      .attr("x", (d) =>
+        useRoundNodes ? null : d.x - Math.max(2, d.connections / 2) - 1
+      )
+      .attr("y", (d) =>
+        useRoundNodes ? null : d.y - Math.max(2, d.connections / 2) - 1
+      )
       .attr("fill", "none")
       .attr("stroke", "white")
       .attr("stroke-width", 2)
@@ -177,11 +205,14 @@ function App() {
       .selectAll("fillRect")
       .data(nodes)
       .enter()
-      .append("rect")
-      .attr("width", (d) => Math.max(4, d.connections))
-      .attr("height", (d) => Math.max(4, d.connections))
-      .attr("x", (d) => d.x - Math.max(2, d.connections / 2))
-      .attr("y", (d) => d.y - Math.max(2, d.connections / 2))
+      .append(useRoundNodes ? "circle" : "rect")
+      .attr("r", (d) => (useRoundNodes ? Math.max(2, (d.connections / 2) * (nodeSizeScale / 5)) : null))
+      .attr("cx", (d) => (useRoundNodes ? d.x : null))
+      .attr("cy", (d) => (useRoundNodes ? d.y : null))
+      .attr("width", (d) => (useRoundNodes ? null : Math.max(4, d.connections * (nodeSizeScale / 5))))
+      .attr("height", (d) => (useRoundNodes ? null : Math.max(4, d.connections * (nodeSizeScale / 5))))
+      .attr("x", (d) => (useRoundNodes ? null : d.x - Math.max(2, d.connections / 2)))
+      .attr("y", (d) => (useRoundNodes ? null : d.y - Math.max(2, d.connections / 2)))
       .attr("fill", (d) => (colors.includes(d.color) ? d.color : "#000"))
       .attr("fill-opacity", (d) => Math.min(1, 0.2 + d.connections / 5));
   }, []);
