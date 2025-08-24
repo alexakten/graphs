@@ -4,14 +4,23 @@ import Delaunator from "delaunator";
 
 const totalCoords = 100;
 
+const xPosition = -180; // change to shift left/right
+const yPosition = -180; // change to shift up/down
+
 const coords = [];
 while (coords.length < totalCoords * 2) {
-  const x = Math.floor(Math.random() * 800); // full width
-  const y = Math.floor(Math.random() * 1000 - 100); // full height
+  const colWidth = 900 / 3;
+  const rowHeight = 1200 / 4;
 
-  const inMiddleLeftQuadrant = x < 300 && y >= 266 && y < 533;
+  const x = Math.floor(Math.random() * 900); // now spans 3 columns
+  const y = Math.floor(Math.random() * 1200);
 
-  if (!inMiddleLeftQuadrant) {
+  const inMiddleLeftQuadrants =
+    x < colWidth &&
+    ((y >= rowHeight && y < rowHeight * 2) ||
+      (y >= rowHeight * 2 && y < rowHeight * 3));
+
+  if (!inMiddleLeftQuadrants) {
     coords.push(x, y);
   }
 }
@@ -24,7 +33,8 @@ const nodes = coords.reduce((acc, _, i) => {
 }, []);
 
 const edgeSet = new Set();
-const isInMiddleLeft = (x, y) => x < 300 && y >= 266 && y < 533;
+const colWidth = 900 / 3;
+const rowHeight = 1200 / 4;
 
 for (let i = 0; i < delaunay.triangles.length; i += 3) {
   const a = delaunay.triangles[i];
@@ -40,13 +50,18 @@ for (let i = 0; i < delaunay.triangles.length; i += 3) {
     const p2 = nodes[v];
 
     // Skip edge if either node lies within the excluded middle-left quadrant
-    const topLeft = (x, y) => x < 300 && y < 266;
-    const middleLeft = (x, y) => x < 300 && y >= 266 && y < 533;
-    const bottomLeft = (x, y) => x < 300 && y >= 533;
+    const topLeft = (x, y) => x < colWidth && y < rowHeight;
+    const midTopLeft = (x, y) =>
+      x < colWidth && y >= rowHeight && y < rowHeight * 2;
+    const midBottomLeft = (x, y) =>
+      x < colWidth && y >= rowHeight * 2 && y < rowHeight * 3;
+    const bottomLeft = (x, y) => x < colWidth && y >= rowHeight * 3;
 
     if (
-      middleLeft(p1.x, p1.y) ||
-      middleLeft(p2.x, p2.y) ||
+      midTopLeft(p1.x, p1.y) ||
+      midTopLeft(p2.x, p2.y) ||
+      midBottomLeft(p1.x, p1.y) ||
+      midBottomLeft(p2.x, p2.y) ||
       (topLeft(p1.x, p1.y) && bottomLeft(p2.x, p2.y)) ||
       (bottomLeft(p1.x, p1.y) && topLeft(p2.x, p2.y))
     ) {
@@ -106,7 +121,11 @@ function App() {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const link = svg
+    const g = svg
+      .append("g")
+      .attr("transform", `translate(${xPosition}, ${yPosition})`);
+
+    const link = g
       .selectAll("line")
       .data(links)
       .enter()
@@ -115,21 +134,56 @@ function App() {
       .attr("y1", (d) => nodes[d.source].y)
       .attr("x2", (d) => nodes[d.target].x)
       .attr("y2", (d) => nodes[d.target].y)
-      .attr("stroke", "#e7e7e7")
-      .attr("stroke-width", 1);
+      .attr("stroke", "#000")
+      .attr("stroke-width", 1)
+      .attr("stroke-opacity", () => {
+        return Math.random() < 0.5 ? 0.1 : 0.04;
+      });
 
-    const node = svg
-      .selectAll("rect")
+    // Outer stroke rectangles
+    g.selectAll("outerStroke")
       .data(nodes)
       .enter()
       .append("rect")
-      .attr("width", (d) => Math.max(4, d.connections)) // Size based on connections
+      .attr("width", (d) => Math.max(4, d.connections) + 6)
+      .attr("height", (d) => Math.max(4, d.connections) + 6)
+      .attr("x", (d) => d.x - Math.max(2, d.connections / 2) - 3)
+      .attr("y", (d) => d.y - Math.max(2, d.connections / 2) - 3)
+      .attr("fill", "none")
+      .attr("stroke", (d) => {
+        if (colors.includes(d.color) && Math.random() < 0.2) {
+          return d.color;
+        }
+        return "none";
+      })
+      .attr("stroke-width", 1)
+      .attr("stroke-opacity", 1);
+
+    // White inner stroke rectangles
+    g.selectAll("whiteStroke")
+      .data(nodes)
+      .enter()
+      .append("rect")
+      .attr("width", (d) => Math.max(4, d.connections) + 2)
+      .attr("height", (d) => Math.max(4, d.connections) + 2)
+      .attr("x", (d) => d.x - Math.max(2, d.connections / 2) - 1)
+      .attr("y", (d) => d.y - Math.max(2, d.connections / 2) - 1)
+      .attr("fill", "none")
+      .attr("stroke", "white")
+      .attr("stroke-width", 2)
+      .attr("stroke-opacity", 0.5);
+
+    const node = g
+      .selectAll("fillRect")
+      .data(nodes)
+      .enter()
+      .append("rect")
+      .attr("width", (d) => Math.max(4, d.connections))
       .attr("height", (d) => Math.max(4, d.connections))
       .attr("x", (d) => d.x - Math.max(2, d.connections / 2))
       .attr("y", (d) => d.y - Math.max(2, d.connections / 2))
       .attr("fill", (d) => (colors.includes(d.color) ? d.color : "#000"))
-      .attr("stroke", "white")
-      .attr("stroke-width", 1);
+      .attr("fill-opacity", (d) => Math.min(1, 0.2 + d.connections / 5));
   }, []);
 
   return (
