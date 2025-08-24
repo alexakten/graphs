@@ -8,6 +8,8 @@ const xPosition = -180; // change to shift left/right
 const yPosition = -180; // change to shift up/down
 const useRoundNodes = true; // Set to false for square nodes
 const nodeSizeScale = 7; // Set scale from 1 to 10
+// const colors = ["#000", "#000", "#000"];
+const colors = ["#920C00", "#000", "#000792"];
 
 const coords = [];
 while (coords.length < totalCoords * 2) {
@@ -79,9 +81,6 @@ const links = Array.from(edgeSet).map((key) => {
   const [source, target] = key.split("-").map(Number);
   return { source, target };
 });
-
-// Color palette for top nodes
-const colors = ["#920C00", "#7977FF", "#000792"];
 
 // Compute connection count for each node
 const connectionMap = new Map();
